@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+    <head><meta charset="utf-8">
+    <title>IoT Reader</title>
+    </head>
+    <body>
+        <h1>IoT Temperature and Humidity Reader</h1>
+        <div id="data"></div>
+        <script>
+            const dataDiv = document.getElementById('data');
+            const ws = new WebSocket('ws://${window.location.host}/ws');
+            ws.onmessage = function(event) {
+                const message = event.data;
+                const p = document.createElement('p');
+                p.textContent = message;
+                dataDiv.appendChild(p);
+            };
+        </script>
+</html>
