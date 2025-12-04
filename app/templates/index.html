@@ -1,19 +1,129 @@
 <!doctype html>
 <html>
-    <head><meta charset="utf-8">
-    <title>IoT Reader</title>
+    <head>
+        <meta charset="utf-8">
+        <title>IoT Reader</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+                background-color: #f5f5f5;
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+            .container {
+                display: flex;
+                justify-content: center;
+                gap: 30px;
+                flex-wrap: wrap;
+            }
+            .graph-container {
+                background-color: white;
+                border-radius: 8px;
+                padding: 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            .graph-container h2 {
+                margin-top: 0;
+                color: #555;
+            }
+            .graph-container img {
+                max-width: 100%;
+                height: auto;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            #data {
+                margin-top: 20px;
+                padding: 15px;
+                background-color: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                max-width: 100%;
+            }
+            .data-item {
+                padding: 10px;
+                margin: 5px 0;
+                background-color: #f9f9f9;
+                border-left: 4px solid #2196F3;
+                border-radius: 2px;
+            }
+            .status {
+                text-align: center;
+                color: #666;
+                margin-top: 10px;
+                font-style: italic;
+            }
+        </style>
     </head>
     <body>
         <h1>IoT Temperature and Humidity Reader</h1>
-        <div id="data"></div>
+        <div class="container">
+            <div class="graph-container">
+                <h2>Temperature over Time</h2>
+                <img id="tempGraph" src="" alt="Temperature Plot" />
+            </div>
+            <div class="graph-container">
+                <h2>Humidity over Time</h2>
+                <img id="humidityGraph" src="" alt="Humidity Plot" />
+            </div>
+        </div>
+    
         <script>
-            const dataDiv = document.getElementById('data');
+            const tempGraphImg = document.getElementById('tempGraph');
+            const humidityGraphImg = document.getElementById('humidityGraph');
+            let dataCount = 0;
+
+            // Initial graph load
+            function updateGraphs() {
+                fetch('/api/temperature-graph')
+                    .then(response => response.json())
+                    .then(data => {
+                        tempGraphImg.src = 'data:image/png;base64,' + data.image;
+                    })
+                    .catch(error => console.error('Error loading temperature graph:', error));
+
+                fetch('/api/humidity-graph')
+                    .then(response => response.json())
+                    .then(data => {
+                        humidityGraphImg.src = 'data:image/png;base64,' + data.image;
+                    })
+                    .catch(error => console.error('Error loading humidity graph:', error));
+            }
+
+            // Load graphs on page load
+            window.addEventListener('load', updateGraphs);
+
+            // WebSocket connection
             const ws = new WebSocket(`ws://${window.location.host}/ws`);
+            
+            ws.onopen = function(event) {
+                console.log('WebSocket connected');
+            };
+            
             ws.onmessage = function(event) {
-                const message = event.data;
-                const p = document.createElement('p');
-                p.textContent = message;
-                dataDiv.appendChild(p);
+                try {
+                    const message = JSON.parse(event.data);
+                    
+                    if (message.type === 'data_update') {
+                        // Update graphs
+                        updateGraphs();
+                    }
+                } catch (error) {
+                    console.error('Error parsing message:', error);
+                }
+            };
+            
+            ws.onerror = function(event) {
+                console.error('WebSocket error:', event);
+            };
+            
+            ws.onclose = function(event) {
+                console.log('WebSocket closed');
             };
         </script>
+    </body>
 </html>
