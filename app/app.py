@@ -5,7 +5,6 @@ from database.db import db
 from dotenv import load_dotenv
 import paho.mqtt.client as mqtt
 import matplotlib
-# Use a non-interactive backend so matplotlib does not try to create GUI windows
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import os, logging, json
