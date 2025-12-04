@@ -17,59 +17,75 @@ last_hum = None
 
 def message(ws, msg):
     print("Message received")
+    global last_temp_index, last_temp, last_hum_index, last_hum
     m = msg.payload.decode().strip()
     data = json.loads(m)
     
-    temp_table = db.Table('Temperature')
     if last_temp_index == -1 or data['temperature'] == last_temp:
         last_temp_index += 1
         last_temp = data['temperature']
         item={
-            'index': last_temp_index,
-            'temp': data['temperature'],
-            'timestamp': data['timestamp']
+            'index': {
+                'N': str(last_temp_index),
+            },
+            'temp': {
+                'N': str(data['temperature']),
+            },
+            'timestamp': {
+                'S': data['timestamp'],
+            },
         }
         try:
-            temp_table.put_item(Item=item)
+            db.put_item(TableName='Temperature', Item=item)
             logging.info(f"Inserted item into Temperature: {item}")
         except Exception as e:
             logging.error(f"Error inserting item into Temperature: {e}")
             
-    hum_table = db.Table('Humidity')
     if last_hum_index == -1 or data['humidity'] == last_hum:
         last_hum_index += 1
         last_hum = data['humidity']
         item={
-            'index': last_hum_index,
-            'temp': data['humidity'],
-            'timestamp': data['timestamp']
+            'index': {
+                'N': str(last_hum_index),
+            },
+            'temp': {
+                'N': str(data['humidity']),
+            },
+            'timestamp': {
+                'S': data['timestamp'],
+            },
         }
         try:
-            hum_table.put_item(Item=item)
+            db.put_item(TableName='Humidity', Item=item)
             logging.info(f"Inserted item into Humidity: {item}")
         except Exception as e:
             logging.error(f"Error inserting item into Humidity: {e}")
             
-    print(f"Received message on topic {msg.topic}: {m}")
-    ws.send(m)
+    try:
+        ws.send(m)
+    except Exception as e:
+        logging.error(f"Error sending message over WebSocket: {e}")
 
 @sock.route('/ws')
 def subscribe(ws):
-    print("WebSocket connection established")
-    broker = os.getenv("MQTT_BROKER")
-    port = int(os.getenv("MQTT_PORT"))
-    username = os.getenv("MQTT_USERNAME")
-    password = os.getenv("MQTT_PASSWORD")
-    topic_base = os.getenv("MQTT_TOPIC_BASE")
-    client = mqtt.Client()
-    client.username_pw_set(username, password)
-    client.tls_set()
-    client.connect(broker, port, 60)
-    client.loop_start()
-    while True:
-        client.subscribe(topic_base)
-        client.on_message = lambda client, userdata, msg: ws.send(msg.payload.decode().strip())
-        sleep(2)  # Give some time for subscription to take effect
+    try:
+        print("WebSocket connection established")
+        broker = os.getenv("MQTT_BROKER")
+        port = int(os.getenv("MQTT_PORT"))
+        username = os.getenv("MQTT_USERNAME")
+        password = os.getenv("MQTT_PASSWORD")
+        topic_base = os.getenv("MQTT_TOPIC_BASE")
+        client = mqtt.Client()
+        client.username_pw_set(username, password)
+        client.tls_set()
+        client.connect(broker, port, 60)
+        client.loop_start()
+        while True:
+            client.subscribe(topic_base)
+            client.on_message = lambda client, userdata, msg: message(ws, msg)
+            sleep(2)  # Give some time for subscription to take effect
+    except Exception as e:
+        logging.error(f"WebSocket error: {e}")
 
 @app.get("/")
 def home():
