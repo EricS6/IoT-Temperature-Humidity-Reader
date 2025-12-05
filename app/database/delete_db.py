@@ -1,4 +1,6 @@
 from db import db
 
-db.delete_table(TableName='Temperature')
-db.delete_table(TableName='Humidity')
+try:
+        db.delete_table(TableName='Reader')
+except Exception as e:
+    print("Error deleting table:", e)

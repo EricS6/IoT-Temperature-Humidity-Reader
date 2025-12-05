@@ -15,70 +15,38 @@ load_dotenv()
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 sock = Sock(app)
-last_temp_index = -1
-last_temp = None
-last_hum_index = -1
-last_hum = None
 
 def message(ws, msg):
-    print("Message received")
-    global last_temp_index, last_temp, last_hum_index, last_hum
     m = msg.payload.decode().strip()
     data = json.loads(m)
     
-    if True: #last_temp_index == -1 or data['temperature'] != last_temp:
-        last_temp_index += 1
-        last_temp = data['temperature']
-        item={
-            'index': {
-                'N': str(last_temp_index),
-            },
-            'temp': {
-                'N': str(data['temperature']),
-            },
-            'timestamp': {
-                'S': data['timestamp'],
-            },
-        }
-        try:
-            db.put_item(TableName='Temperature', Item=item)
-            logging.info(f"Inserted item into Temperature: {item}")
-        except Exception as e:
-            logging.error(f"Error inserting item into Temperature: {e}")
-            
-    if True: #last_hum_index == -1 or data['humidity'] != last_hum:
-        last_hum_index += 1
-        last_hum = data['humidity']
-        item={
-            'index': {
-                'N': str(last_hum_index),
-            },
-            'temp': {
-                'N': str(data['humidity']),
-            },
-            'timestamp': {
-                'S': data['timestamp'],
-            },
-        }
-        try:
-            db.put_item(TableName='Humidity', Item=item)
-            logging.info(f"Inserted item into Humidity: {item}")
-        except Exception as e:
-            logging.error(f"Error inserting item into Humidity: {e}")
+    item={
+        'timestamp': {
+            'S': data['timestamp'],
+        },
+        'temperature': {
+            'N': str(data['temperature']),
+        },
+        'humidity': {
+            'N': str(data['humidity']),
+        },
+    }
+    try:
+        db.put_item(TableName='Reader', Item=item)
+        logging.info(f"Inserted item into database: {item}")
+    except Exception as e:
+        logging.error(f"Error inserting item into database: {e}")
             
     try:
         ws.send(json.dumps({
             'type': 'data_update',
-            'temperature': data['temperature'],
-            'humidity': data['humidity'],
-            'timestamp': data['timestamp']
         }))
     except Exception as e:
         logging.error(f"Error sending message over WebSocket: {e}")
         
 def get_temp_plot():
     try:
-        response = db.scan(TableName='Temperature')
+        response = db.scan(TableName='Reader')
         items = response.get('Items', [])
         
         if not items:
@@ -88,7 +56,7 @@ def get_temp_plot():
             return fig
         
         items = sorted(items, key=lambda x: x['timestamp']['S'])
-        temps = [float(item['temp']['N']) for item in items]
+        temps = [float(item['temperature']['N']) for item in items]
         
         # Parse timestamps and calculate minutes ago relative to the most recent datapoint
         parsed_times = []
@@ -136,7 +104,7 @@ def get_temp_plot():
 
 def get_humidity_plot():
     try:
-        response = db.scan(TableName='Humidity')
+        response = db.scan(TableName='Reader')
         items = response.get('Items', [])
         
         if not items:
@@ -146,7 +114,7 @@ def get_humidity_plot():
             return fig
         
         items = sorted(items, key=lambda x: x['timestamp']['S'])
-        humidities = [float(item['temp']['N']) for item in items]  # Note: 'temp' field stores humidity value
+        humidities = [float(item['humidity']['N']) for item in items]  
         
         # Parse timestamps and calculate minutes ago relative to the most recent datapoint
         parsed_times = []

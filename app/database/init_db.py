@@ -2,36 +2,17 @@ import db
 
 try:
     db.db.create_table(
-        TableName='Temperature',
+        TableName='Reader',
         KeySchema=[
             {
-                'AttributeName': 'index',
+                'AttributeName': 'timestamp',
                 'KeyType': 'HASH'  # Partition key
             }
         ],
         AttributeDefinitions=[
             {
-                'AttributeName': 'index',
-                'AttributeType': 'N'
-            }
-        ],
-        ProvisionedThroughput={
-            'ReadCapacityUnits': 5,
-            'WriteCapacityUnits': 5
-        }
-    )
-    db.db.create_table(
-        TableName='Humidity',
-        KeySchema=[
-            {
-                'AttributeName': 'index',
-                'KeyType': 'HASH'  # Partition key
-            }
-        ],
-        AttributeDefinitions=[
-            {
-                'AttributeName': 'index',
-                'AttributeType': 'N'
+                'AttributeName': 'timestamp',
+                'AttributeType': 'S'
             }
         ],
         ProvisionedThroughput={
@@ -41,9 +22,8 @@ try:
     )
 
     while True:
-        temp_status = db.db.describe_table(TableName='Temperature')['Table']['TableStatus']
-        hum_status = db.db.describe_table(TableName='Humidity')['Table']['TableStatus']
-        if temp_status == 'ACTIVE' and hum_status == 'ACTIVE':
+        status = db.db.describe_table(TableName='Reader')['Table']['TableStatus']
+        if status == 'ACTIVE':
             print("Tables created and active.")
             break
 
