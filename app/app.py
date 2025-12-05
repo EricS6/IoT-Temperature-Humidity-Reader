@@ -44,6 +44,37 @@ def message(ws, msg):
     except Exception as e:
         logging.error(f"Error sending message over WebSocket: {e}")
         
+def get_time_offsets(items):
+    # Parse timestamps and calculate minutes ago relative to the most recent datapoint
+    parsed_times = []
+    for item in items:
+        try:
+            ts_str = item['timestamp']['S']
+            if ts_str.endswith('Z'):
+                ts_str = ts_str[:-1]
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except ValueError:
+                ts = datetime.fromisoformat(ts_str + '+00:00')
+            if ts.tzinfo is None:
+                ts = pytz.UTC.localize(ts)
+            parsed_times.append(ts)
+        except Exception as e:
+            logging.warning(f"Could not parse timestamp {item['timestamp']['S']}: {e}")
+            parsed_times.append(None)
+
+    # Use the most recent valid timestamp as reference so offsets only change when data changes
+    most_recent = max([t for t in parsed_times if t is not None], default=None)
+    time_offsets = []
+    for ts in parsed_times:
+        if ts is None or most_recent is None:
+            time_offsets.append(0)
+        else:
+            delta = (most_recent - ts).total_seconds() / 60.0
+            time_offsets.append(delta)
+            
+    return time_offsets
+        
 def get_temp_plot():
     try:
         response = db.scan(TableName='Reader')
@@ -58,33 +89,7 @@ def get_temp_plot():
         items = sorted(items, key=lambda x: x['timestamp']['S'])
         temps = [float(item['temperature']['N']) for item in items]
         
-        # Parse timestamps and calculate minutes ago relative to the most recent datapoint
-        parsed_times = []
-        for item in items:
-            try:
-                ts_str = item['timestamp']['S']
-                if ts_str.endswith('Z'):
-                    ts_str = ts_str[:-1]
-                try:
-                    ts = datetime.fromisoformat(ts_str)
-                except ValueError:
-                    ts = datetime.fromisoformat(ts_str + '+00:00')
-                if ts.tzinfo is None:
-                    ts = pytz.UTC.localize(ts)
-                parsed_times.append(ts)
-            except Exception as e:
-                logging.warning(f"Could not parse timestamp {item['timestamp']['S']}: {e}")
-                parsed_times.append(None)
-
-        # Use the most recent valid timestamp as reference so offsets only change when data changes
-        most_recent = max([t for t in parsed_times if t is not None], default=None)
-        time_offsets = []
-        for ts in parsed_times:
-            if ts is None or most_recent is None:
-                time_offsets.append(0)
-            else:
-                delta = (most_recent - ts).total_seconds() / 60.0
-                time_offsets.append(delta)
+        time_offsets = get_time_offsets(items)
         
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(time_offsets, temps, marker='none', linestyle='-', color='red', linewidth=2)
@@ -116,33 +121,7 @@ def get_humidity_plot():
         items = sorted(items, key=lambda x: x['timestamp']['S'])
         humidities = [float(item['humidity']['N']) for item in items]  
         
-        # Parse timestamps and calculate minutes ago relative to the most recent datapoint
-        parsed_times = []
-        for item in items:
-            try:
-                ts_str = item['timestamp']['S']
-                if ts_str.endswith('Z'):
-                    ts_str = ts_str[:-1]
-                try:
-                    ts = datetime.fromisoformat(ts_str)
-                except ValueError:
-                    ts = datetime.fromisoformat(ts_str + '+00:00')
-                if ts.tzinfo is None:
-                    ts = pytz.UTC.localize(ts)
-                parsed_times.append(ts)
-            except Exception as e:
-                logging.warning(f"Could not parse timestamp {item['timestamp']['S']}: {e}")
-                parsed_times.append(None)
-
-        # Use the most recent valid timestamp as reference so offsets only change when data changes
-        most_recent = max([t for t in parsed_times if t is not None], default=None)
-        time_offsets = []
-        for ts in parsed_times:
-            if ts is None or most_recent is None:
-                time_offsets.append(0)
-            else:
-                delta = (most_recent - ts).total_seconds() / 60.0
-                time_offsets.append(delta)
+        time_offsets = get_time_offsets(items)
         
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(time_offsets, humidities, marker='none', linestyle='-', color='blue', linewidth=2)
